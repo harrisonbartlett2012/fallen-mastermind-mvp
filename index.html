@@ -14,6 +14,7 @@
             --neon-green: #00ff66;
             --neon-purple: #b700ff;
             --neon-yellow: #ffea00;
+            --neon-orange: #ff7300;
             --border-color: #333;
         }
         body {
@@ -28,7 +29,7 @@
         }
         .header {
             width: 100%;
-            max-width: 1200px;
+            max-width: 1400px;
             display: flex;
             justify-content: space-between;
             border-bottom: 2px solid var(--neon-blue);
@@ -41,9 +42,9 @@
         
         .container {
             width: 100%;
-            max-width: 1200px;
+            max-width: 1400px;
             display: grid;
-            grid-template-columns: 1fr 1fr 1fr 1fr;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
             gap: 15px;
         }
         .panel {
@@ -57,6 +58,7 @@
         h3 { margin-top: 0; color: var(--neon-blue); border-bottom: 1px solid #333; padding-bottom: 5px; font-size: 1rem; }
         .market-title { color: var(--neon-purple); }
         .armory-title { color: var(--neon-yellow); }
+        .base-title { color: var(--neon-orange); }
         
         .list-item {
             display: flex;
@@ -86,6 +88,8 @@
         .market-btn:hover { background-color: var(--neon-purple); color: #fff; }
         .armory-btn { color: var(--neon-yellow); border-color: var(--neon-yellow); }
         .armory-btn:hover { background-color: var(--neon-yellow); color: #000; }
+        .base-btn { color: var(--neon-orange); border-color: var(--neon-orange); }
+        .base-btn:hover { background-color: var(--neon-orange); color: #000; }
         
         .execute-btn { width: 100%; margin-top: 15px; font-size: 1.1rem; padding: 12px; }
         .log-panel { height: 180px; overflow-y: auto; color: #888; font-size: 0.9rem; }
@@ -113,7 +117,7 @@
             <h3>// OPEN CONTRACTS</h3>
             <div id="contracts-list"></div>
             <div style="margin-top: 10px; font-size: 0.8rem; color: #888;">
-                Current Global Risk Reduction: -<span id="risk-reduction-display" class="success">0</span>%
+                Global Risk Reduction: -<span id="risk-reduction-display" class="success">0</span>%
             </div>
         </div>
 
@@ -125,6 +129,11 @@
         <div class="panel">
             <h3 class="armory-title">// THE ARMORY</h3>
             <div id="armory-list"></div>
+        </div>
+
+        <div class="panel">
+            <h3 class="base-title">// SAFEHOUSE</h3>
+            <div id="base-list"></div>
         </div>
 
         <div class="panel panel-full">
@@ -159,8 +168,12 @@
             ],
             upgrades: [
                 { id: "u1", name: "Kevlar Vests", desc: "-5% Risk", riskBonus: 5, intelCost: 20, cashCost: 10000, owned: false },
-                { id: "u2", name: "Hollow Points", desc: "-10% Risk", riskBonus: 10, intelCost: 50, cashCost: 35000, owned: false },
-                { id: "u3", name: "Tactical Drones", desc: "-15% Risk", riskBonus: 15, intelCost: 100, cashCost: 100000, owned: false }
+                { id: "u2", name: "Hollow Points", desc: "-10% Risk", riskBonus: 10, intelCost: 50, cashCost: 35000, owned: false }
+            ],
+            baseRooms: [
+                { id: "b1", name: "Server Farm", desc: "+3 Intel / Week", intelCost: 30, cashCost: 50000, owned: false, effect: "intel" },
+                { id: "b2", name: "The Barracks", desc: "-15% Payroll Cost", intelCost: 40, cashCost: 75000, owned: false, effect: "payroll" },
+                { id: "b3", name: "Med-Bay", desc: "50% chance to save K.I.A.", intelCost: 80, cashCost: 150000, owned: false, effect: "medical" }
             ]
         };
 
@@ -171,15 +184,20 @@
             document.getElementById('intel-display').innerText = gameData.intel;
             document.getElementById('risk-reduction-display').innerText = gameData.globalRiskReduction;
             
+            // Calculate Payroll with potential Base Buff
+            let totalPayroll = 0;
+            gameData.roster.forEach(op => totalPayroll += op.salary);
+            if (gameData.baseRooms.find(r => r.id === "b2").owned) {
+                totalPayroll = Math.floor(totalPayroll * 0.85); // 15% discount
+            }
+
             // Render Roster
             const rosterDiv = document.getElementById('roster-list');
             rosterDiv.innerHTML = '';
-            let totalPayroll = 0;
             if (gameData.roster.length === 0) {
                 rosterDiv.innerHTML = `<div class="list-item danger">NO ACTIVE OPERATIVES</div>`;
             } else {
                 gameData.roster.forEach(op => {
-                    totalPayroll += op.salary;
                     rosterDiv.innerHTML += `
                         <div class="list-item">
                             <span><strong>${op.name}</strong><br><small>[${op.class}]</small></span>
@@ -195,7 +213,7 @@
             gameData.contracts.forEach((job, index) => {
                 const btnState = gameData.roster.length > 0 ? '' : 'disabled';
                 let currentRisk = job.baseRisk - gameData.globalRiskReduction;
-                if (currentRisk < 5) currentRisk = 5; // Minimum 5% risk always
+                if (currentRisk < 5) currentRisk = 5;
 
                 contractsDiv.innerHTML += `
                     <div class="list-item" style="flex-direction: column; align-items: flex-start;">
@@ -237,11 +255,7 @@
             armoryDiv.innerHTML = '';
             gameData.upgrades.forEach((upg, index) => {
                 if (upg.owned) {
-                    armoryDiv.innerHTML += `
-                        <div class="list-item" style="color: #555;">
-                            <span><s>${upg.name}</s></span>
-                            <span class="success">ACQUIRED</span>
-                        </div>`;
+                    armoryDiv.innerHTML += `<div class="list-item" style="color: #555;"><span><s>${upg.name}</s></span><span class="success">ACQUIRED</span></div>`;
                 } else {
                     const btnState = (gameData.cash >= upg.cashCost && gameData.intel >= upg.intelCost) ? '' : 'disabled';
                     armoryDiv.innerHTML += `
@@ -250,8 +264,29 @@
                                 <span><strong>${upg.name}</strong><br><small>${upg.desc}</small></span>
                             </div>
                             <div style="width: 100%; display: flex; justify-content: space-between; align-items: center;">
-                                <span style="font-size: 0.7rem; color: #aaa;">$${upg.cashCost.toLocaleString()} | ${upg.intelCost} Intel</span>
+                                <span style="font-size: 0.7rem; color: #aaa;">$${upg.cashCost.toLocaleString()} | ${upg.intelCost} Int</span>
                                 <button class="armory-btn" onclick="buyUpgrade(${index})" ${btnState}>BUY</button>
+                            </div>
+                        </div>`;
+                }
+            });
+
+            // Render Safehouse Base Rooms
+            const baseDiv = document.getElementById('base-list');
+            baseDiv.innerHTML = '';
+            gameData.baseRooms.forEach((room, index) => {
+                if (room.owned) {
+                    baseDiv.innerHTML += `<div class="list-item" style="color: #555;"><span><s>${room.name}</s></span><span class="success">ONLINE</span></div>`;
+                } else {
+                    const btnState = (gameData.cash >= room.cashCost && gameData.intel >= room.intelCost) ? '' : 'disabled';
+                    baseDiv.innerHTML += `
+                        <div class="list-item" style="flex-direction: column; align-items: flex-start;">
+                            <div style="width: 100%; display: flex; justify-content: space-between; margin-bottom: 5px;">
+                                <span><strong>${room.name}</strong><br><small>${room.desc}</small></span>
+                            </div>
+                            <div style="width: 100%; display: flex; justify-content: space-between; align-items: center;">
+                                <span style="font-size: 0.7rem; color: #aaa;">$${room.cashCost.toLocaleString()} | ${room.intelCost} Int</span>
+                                <button class="base-btn" onclick="buyRoom(${index})" ${btnState}>BUILD</button>
                             </div>
                         </div>`;
                 }
@@ -267,6 +302,7 @@
             if (type === 'success') colorClass = 'success';
             if (type === 'market') colorClass = 'market';
             if (type === 'armory') colorClass = 'armory-title';
+            if (type === 'base') colorClass = 'base-title';
             
             logPanel.innerHTML += `<div class="log-entry ${colorClass}">> ${msg}</div>`;
             logPanel.scrollTop = logPanel.scrollHeight;
@@ -274,16 +310,19 @@
 
         // --- CORE LOGIC ---
         function processPayroll() {
-            let payroll = 0;
-            gameData.roster.forEach(op => payroll += op.salary);
+            let totalPayroll = 0;
+            gameData.roster.forEach(op => totalPayroll += op.salary);
+            if (gameData.baseRooms.find(r => r.id === "b2").owned) {
+                totalPayroll = Math.floor(totalPayroll * 0.85);
+            }
             
-            if (gameData.cash < payroll) {
+            if (gameData.cash < totalPayroll) {
                 logMessage("CRITICAL: INSUFFICIENT FUNDS. SYNDICATE COLLAPSED. GAME OVER.", 'danger');
                 document.querySelectorAll('button').forEach(b => b.disabled = true);
                 return false;
             }
-            gameData.cash -= payroll;
-            if (payroll > 0) logMessage(`PAYROLL DEDUCTED: -$${payroll.toLocaleString()}`, 'danger');
+            gameData.cash -= totalPayroll;
+            if (totalPayroll > 0) logMessage(`PAYROLL DEDUCTED: -$${totalPayroll.toLocaleString()}`, 'danger');
             return true;
         }
 
@@ -291,6 +330,14 @@
             logMessage(`--- ADVANCING TO WEEK ${gameData.week + 1} ---`);
             if (processPayroll()) {
                 gameData.week++;
+                
+                // Server Farm Passive Income
+                if (gameData.baseRooms.find(r => r.id === "b1").owned) {
+                    gameData.intel += 3;
+                    logMessage(`SERVER FARM MINED +3 INTEL.`, 'base');
+                }
+
+                // Market Refresh
                 if (Math.random() < 0.3) {
                     logMessage("BLACK MARKET REFRESHED NEW MERCS.", 'market');
                     gameData.market.push({ name: "RANDO-" + Math.floor(Math.random()*99), class: "Grunt", fee: 3000, salary: 800 });
@@ -322,6 +369,17 @@
             }
         }
 
+        function buyRoom(index) {
+            const room = gameData.baseRooms[index];
+            if (gameData.cash >= room.cashCost && gameData.intel >= room.intelCost) {
+                gameData.cash -= room.cashCost;
+                gameData.intel -= room.intelCost;
+                room.owned = true;
+                logMessage(`SAFEHOUSE EXPANDED: ${room.name} ONLINE.`, 'base');
+                updateUI();
+            }
+        }
+
         function executeContract(index) {
             if (gameData.roster.length === 0) return;
             
@@ -340,9 +398,18 @@
                     gameData.intel += job.intelReward;
                 } else {
                     const deadOpIndex = Math.floor(Math.random() * gameData.roster.length);
-                    const deadOp = gameData.roster.splice(deadOpIndex, 1)[0];
+                    const deadOp = gameData.roster[deadOpIndex];
+                    
                     logMessage(`AMBUSHED. MISSION ABORTED.`, 'danger');
-                    logMessage(`FATAL CASUALTY: ${deadOp.name} IS K.I.A.`, 'danger');
+                    
+                    // Med-Bay Check
+                    const hasMedBay = gameData.baseRooms.find(r => r.id === "b3").owned;
+                    if (hasMedBay && Math.random() > 0.5) {
+                        logMessage(`MED-BAY ACTIVATED. ${deadOp.name} STABILIZED AND SAVED FROM K.I.A.`, 'base');
+                    } else {
+                        gameData.roster.splice(deadOpIndex, 1);
+                        logMessage(`FATAL CASUALTY: ${deadOp.name} IS K.I.A.`, 'danger');
+                    }
                 }
                 setTimeout(() => { advanceWeek(); }, 1000);
             }, 1000); 

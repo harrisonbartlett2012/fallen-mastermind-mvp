@@ -13,6 +13,7 @@
             --neon-red: #ff003c;
             --neon-green: #00ff66;
             --neon-purple: #b700ff;
+            --neon-yellow: #ffea00;
             --border-color: #333;
         }
         body {
@@ -27,7 +28,7 @@
         }
         .header {
             width: 100%;
-            max-width: 1000px;
+            max-width: 1200px;
             display: flex;
             justify-content: space-between;
             border-bottom: 2px solid var(--neon-blue);
@@ -36,13 +37,14 @@
         }
         .stat { font-size: 1.2rem; font-weight: bold; }
         .cash { color: var(--neon-green); }
+        .intel { color: var(--neon-yellow); }
         
         .container {
             width: 100%;
-            max-width: 1000px;
+            max-width: 1200px;
             display: grid;
-            grid-template-columns: 1fr 1fr 1fr;
-            gap: 20px;
+            grid-template-columns: 1fr 1fr 1fr 1fr;
+            gap: 15px;
         }
         .panel {
             background-color: var(--panel-bg);
@@ -51,10 +53,10 @@
             border-radius: 4px;
         }
         .panel-full { grid-column: 1 / -1; }
-        .panel-wide { grid-column: span 2; }
         
         h3 { margin-top: 0; color: var(--neon-blue); border-bottom: 1px solid #333; padding-bottom: 5px; font-size: 1rem; }
         .market-title { color: var(--neon-purple); }
+        .armory-title { color: var(--neon-yellow); }
         
         .list-item {
             display: flex;
@@ -62,7 +64,7 @@
             border-bottom: 1px dashed var(--border-color);
             padding: 10px 0;
             align-items: center;
-            font-size: 0.9rem;
+            font-size: 0.85rem;
         }
         .danger { color: var(--neon-red); }
         .success { color: var(--neon-green); }
@@ -72,7 +74,7 @@
             background-color: transparent;
             color: var(--neon-blue);
             border: 1px solid var(--neon-blue);
-            padding: 8px 12px;
+            padding: 8px 10px;
             font-family: inherit;
             font-size: 0.8rem;
             cursor: pointer;
@@ -82,6 +84,8 @@
         button:disabled { border-color: #555; color: #555; cursor: not-allowed; background: none; }
         .market-btn { color: var(--neon-purple); border-color: var(--neon-purple); }
         .market-btn:hover { background-color: var(--neon-purple); color: #fff; }
+        .armory-btn { color: var(--neon-yellow); border-color: var(--neon-yellow); }
+        .armory-btn:hover { background-color: var(--neon-yellow); color: #000; }
         
         .execute-btn { width: 100%; margin-top: 15px; font-size: 1.1rem; padding: 12px; }
         .log-panel { height: 180px; overflow-y: auto; color: #888; font-size: 0.9rem; }
@@ -92,6 +96,7 @@
 
     <div class="header">
         <div class="stat">WEEK: <span id="week-display">1</span></div>
+        <div class="stat">INTEL: <span id="intel-display" class="intel">10</span></div>
         <div class="stat">DIRTY CASH: $<span id="cash-display" class="cash">50000</span></div>
     </div>
 
@@ -107,11 +112,19 @@
         <div class="panel">
             <h3>// OPEN CONTRACTS</h3>
             <div id="contracts-list"></div>
+            <div style="margin-top: 10px; font-size: 0.8rem; color: #888;">
+                Current Global Risk Reduction: -<span id="risk-reduction-display" class="success">0</span>%
+            </div>
         </div>
 
         <div class="panel">
             <h3 class="market-title">// BLACK MARKET</h3>
             <div id="market-list"></div>
+        </div>
+
+        <div class="panel">
+            <h3 class="armory-title">// THE ARMORY</h3>
+            <div id="armory-list"></div>
         </div>
 
         <div class="panel panel-full">
@@ -128,20 +141,26 @@
         let gameData = {
             week: 1,
             cash: 50000,
+            intel: 10,
+            globalRiskReduction: 0,
             roster: [
                 { name: "CROSSHAIR", class: "Sniper", salary: 1500 },
                 { name: "GHOST-01", class: "Ghost", salary: 12000 },
                 { name: "BRICK", class: "Breacher", salary: 5000 }
             ],
             contracts: [
-                { id: 1, name: "Pawn Shop Hit", risk: 20, payout: 12000 },
-                { id: 2, name: "Armored Truck", risk: 50, payout: 45000 },
-                { id: 3, name: "Data Skim", risk: 75, payout: 150000 }
+                { id: 1, name: "Pawn Shop Hit", baseRisk: 25, payout: 15000, intelReward: 5 },
+                { id: 2, name: "Armored Truck", baseRisk: 55, payout: 50000, intelReward: 15 },
+                { id: 3, name: "Data Skim", baseRisk: 80, payout: 180000, intelReward: 40 }
             ],
             market: [
                 { name: "VIPER", class: "Hacker", fee: 15000, salary: 4000 },
-                { name: "TRENCH", class: "Enforcer", fee: 2000, salary: 500 },
-                { name: "SPARK", class: "Rookie", fee: 5000, salary: 1000 }
+                { name: "TRENCH", class: "Enforcer", fee: 2000, salary: 500 }
+            ],
+            upgrades: [
+                { id: "u1", name: "Kevlar Vests", desc: "-5% Risk", riskBonus: 5, intelCost: 20, cashCost: 10000, owned: false },
+                { id: "u2", name: "Hollow Points", desc: "-10% Risk", riskBonus: 10, intelCost: 50, cashCost: 35000, owned: false },
+                { id: "u3", name: "Tactical Drones", desc: "-15% Risk", riskBonus: 15, intelCost: 100, cashCost: 100000, owned: false }
             ]
         };
 
@@ -149,12 +168,13 @@
         function updateUI() {
             document.getElementById('week-display').innerText = gameData.week;
             document.getElementById('cash-display').innerText = gameData.cash.toLocaleString();
+            document.getElementById('intel-display').innerText = gameData.intel;
+            document.getElementById('risk-reduction-display').innerText = gameData.globalRiskReduction;
             
             // Render Roster
             const rosterDiv = document.getElementById('roster-list');
             rosterDiv.innerHTML = '';
             let totalPayroll = 0;
-            
             if (gameData.roster.length === 0) {
                 rosterDiv.innerHTML = `<div class="list-item danger">NO ACTIVE OPERATIVES</div>`;
             } else {
@@ -174,6 +194,9 @@
             contractsDiv.innerHTML = '';
             gameData.contracts.forEach((job, index) => {
                 const btnState = gameData.roster.length > 0 ? '' : 'disabled';
+                let currentRisk = job.baseRisk - gameData.globalRiskReduction;
+                if (currentRisk < 5) currentRisk = 5; // Minimum 5% risk always
+
                 contractsDiv.innerHTML += `
                     <div class="list-item" style="flex-direction: column; align-items: flex-start;">
                         <div style="width: 100%; display: flex; justify-content: space-between; margin-bottom: 5px;">
@@ -181,7 +204,7 @@
                             <span class="success">+$${job.payout.toLocaleString()}</span>
                         </div>
                         <div style="width: 100%; display: flex; justify-content: space-between; align-items: center;">
-                            <span style="color: #888;">Risk: ${job.risk}%</span>
+                            <span style="color: #888; font-size: 0.75rem;">Risk: ${currentRisk}% | +${job.intelReward} Intel</span>
                             <button onclick="executeContract(${index})" ${btnState}>DEPLOY</button>
                         </div>
                     </div>`;
@@ -191,7 +214,7 @@
             const marketDiv = document.getElementById('market-list');
             marketDiv.innerHTML = '';
             if (gameData.market.length === 0) {
-                marketDiv.innerHTML = `<div class="list-item" style="color: #888;">MARKET EMPTY. CHECK BACK LATER.</div>`;
+                marketDiv.innerHTML = `<div class="list-item" style="color: #888;">MARKET EMPTY.</div>`;
             } else {
                 gameData.market.forEach((recruit, index) => {
                     const btnState = gameData.cash >= recruit.fee ? '' : 'disabled';
@@ -209,6 +232,31 @@
                 });
             }
 
+            // Render Armory
+            const armoryDiv = document.getElementById('armory-list');
+            armoryDiv.innerHTML = '';
+            gameData.upgrades.forEach((upg, index) => {
+                if (upg.owned) {
+                    armoryDiv.innerHTML += `
+                        <div class="list-item" style="color: #555;">
+                            <span><s>${upg.name}</s></span>
+                            <span class="success">ACQUIRED</span>
+                        </div>`;
+                } else {
+                    const btnState = (gameData.cash >= upg.cashCost && gameData.intel >= upg.intelCost) ? '' : 'disabled';
+                    armoryDiv.innerHTML += `
+                        <div class="list-item" style="flex-direction: column; align-items: flex-start;">
+                            <div style="width: 100%; display: flex; justify-content: space-between; margin-bottom: 5px;">
+                                <span><strong>${upg.name}</strong><br><small>${upg.desc}</small></span>
+                            </div>
+                            <div style="width: 100%; display: flex; justify-content: space-between; align-items: center;">
+                                <span style="font-size: 0.7rem; color: #aaa;">$${upg.cashCost.toLocaleString()} | ${upg.intelCost} Intel</span>
+                                <button class="armory-btn" onclick="buyUpgrade(${index})" ${btnState}>BUY</button>
+                            </div>
+                        </div>`;
+                }
+            });
+
             return totalPayroll;
         }
 
@@ -218,6 +266,7 @@
             if (type === 'danger') colorClass = 'danger';
             if (type === 'success') colorClass = 'success';
             if (type === 'market') colorClass = 'market';
+            if (type === 'armory') colorClass = 'armory-title';
             
             logPanel.innerHTML += `<div class="log-entry ${colorClass}">> ${msg}</div>`;
             logPanel.scrollTop = logPanel.scrollHeight;
@@ -242,8 +291,6 @@
             logMessage(`--- ADVANCING TO WEEK ${gameData.week + 1} ---`);
             if (processPayroll()) {
                 gameData.week++;
-                
-                // 30% chance to refresh the market each week
                 if (Math.random() < 0.3) {
                     logMessage("BLACK MARKET REFRESHED NEW MERCS.", 'market');
                     gameData.market.push({ name: "RANDO-" + Math.floor(Math.random()*99), class: "Grunt", fee: 3000, salary: 800 });
@@ -257,8 +304,20 @@
             if (gameData.cash >= recruit.fee) {
                 gameData.cash -= recruit.fee;
                 gameData.roster.push(recruit);
-                gameData.market.splice(index, 1); // Remove from market
-                logMessage(`HIRED ${recruit.name} FOR $${recruit.fee.toLocaleString()}.`, 'market');
+                gameData.market.splice(index, 1);
+                logMessage(`HIRED ${recruit.name}.`, 'market');
+                updateUI();
+            }
+        }
+
+        function buyUpgrade(index) {
+            const upg = gameData.upgrades[index];
+            if (gameData.cash >= upg.cashCost && gameData.intel >= upg.intelCost) {
+                gameData.cash -= upg.cashCost;
+                gameData.intel -= upg.intelCost;
+                upg.owned = true;
+                gameData.globalRiskReduction += upg.riskBonus;
+                logMessage(`ARMORY UPGRADED: ${upg.name}. GLOBAL COMBAT RISK REDUCED.`, 'armory');
                 updateUI();
             }
         }
@@ -267,22 +326,24 @@
             if (gameData.roster.length === 0) return;
             
             const job = gameData.contracts[index];
-            logMessage(`INITIATING OP: ${job.name}...`);
+            let currentRisk = job.baseRisk - gameData.globalRiskReduction;
+            if (currentRisk < 5) currentRisk = 5;
+
+            logMessage(`INITIATING OP: ${job.name}. Calculated Risk: ${currentRisk}%...`);
             
             const roll = Math.floor(Math.random() * 100) + 1;
             
             setTimeout(() => {
-                if (roll > job.risk) {
-                    logMessage(`OP SUCCESS. TARGET ACQUIRED: +$${job.payout.toLocaleString()}`, 'success');
+                if (roll > currentRisk) {
+                    logMessage(`OP SUCCESS. ACQUIRED: +$${job.payout.toLocaleString()} | +${job.intelReward} Intel`, 'success');
                     gameData.cash += job.payout;
+                    gameData.intel += job.intelReward;
                 } else {
-                    // SOMEONE DIES
                     const deadOpIndex = Math.floor(Math.random() * gameData.roster.length);
                     const deadOp = gameData.roster.splice(deadOpIndex, 1)[0];
                     logMessage(`AMBUSHED. MISSION ABORTED.`, 'danger');
                     logMessage(`FATAL CASUALTY: ${deadOp.name} IS K.I.A.`, 'danger');
                 }
-                
                 setTimeout(() => { advanceWeek(); }, 1000);
             }, 1000); 
         }

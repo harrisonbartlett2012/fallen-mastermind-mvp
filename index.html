@@ -12,6 +12,7 @@
             --neon-blue: #00f3ff;
             --neon-red: #ff003c;
             --neon-green: #00ff66;
+            --neon-purple: #b700ff;
             --border-color: #333;
         }
         body {
@@ -26,7 +27,7 @@
         }
         .header {
             width: 100%;
-            max-width: 900px;
+            max-width: 1000px;
             display: flex;
             justify-content: space-between;
             border-bottom: 2px solid var(--neon-blue);
@@ -38,9 +39,9 @@
         
         .container {
             width: 100%;
-            max-width: 900px;
+            max-width: 1000px;
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: 1fr 1fr 1fr;
             gap: 20px;
         }
         .panel {
@@ -49,10 +50,11 @@
             padding: 15px;
             border-radius: 4px;
         }
-        .panel-full {
-            grid-column: 1 / -1;
-        }
-        h3 { margin-top: 0; color: var(--neon-blue); border-bottom: 1px solid #333; padding-bottom: 5px; }
+        .panel-full { grid-column: 1 / -1; }
+        .panel-wide { grid-column: span 2; }
+        
+        h3 { margin-top: 0; color: var(--neon-blue); border-bottom: 1px solid #333; padding-bottom: 5px; font-size: 1rem; }
+        .market-title { color: var(--neon-purple); }
         
         .list-item {
             display: flex;
@@ -60,25 +62,28 @@
             border-bottom: 1px dashed var(--border-color);
             padding: 10px 0;
             align-items: center;
+            font-size: 0.9rem;
         }
         .danger { color: var(--neon-red); }
         .success { color: var(--neon-green); }
+        .market { color: var(--neon-purple); }
         
         button {
             background-color: transparent;
             color: var(--neon-blue);
             border: 1px solid var(--neon-blue);
-            padding: 8px 15px;
+            padding: 8px 12px;
             font-family: inherit;
-            font-size: 0.9rem;
+            font-size: 0.8rem;
             cursor: pointer;
             transition: all 0.2s;
         }
         button:hover { background-color: var(--neon-blue); color: #000; }
         button:disabled { border-color: #555; color: #555; cursor: not-allowed; background: none; }
+        .market-btn { color: var(--neon-purple); border-color: var(--neon-purple); }
+        .market-btn:hover { background-color: var(--neon-purple); color: #fff; }
         
         .execute-btn { width: 100%; margin-top: 15px; font-size: 1.1rem; padding: 12px; }
-        
         .log-panel { height: 180px; overflow-y: auto; color: #888; font-size: 0.9rem; }
         .log-entry { margin-bottom: 5px; }
     </style>
@@ -94,7 +99,7 @@
         <div class="panel">
             <h3>// ACTIVE ROSTER</h3>
             <div id="roster-list"></div>
-            <div style="margin-top: 15px; text-align: right;">
+            <div style="margin-top: 15px; text-align: right; font-size: 0.9rem;">
                 PAYROLL: <span id="payroll-display" class="danger">0</span> / wk
             </div>
         </div>
@@ -102,6 +107,11 @@
         <div class="panel">
             <h3>// OPEN CONTRACTS</h3>
             <div id="contracts-list"></div>
+        </div>
+
+        <div class="panel">
+            <h3 class="market-title">// BLACK MARKET</h3>
+            <div id="market-list"></div>
         </div>
 
         <div class="panel panel-full">
@@ -119,15 +129,19 @@
             week: 1,
             cash: 50000,
             roster: [
-                { name: "CROSSHAIR", class: "Rookie Sniper", salary: 1500 },
-                { name: "GHOST-01", class: "Elite Ghost", salary: 12000 },
-                { name: "BRICK", class: "Veteran Breacher", salary: 5000 },
-                { name: "GRUNT_A", class: "Enforcer", salary: 500 }
+                { name: "CROSSHAIR", class: "Sniper", salary: 1500 },
+                { name: "GHOST-01", class: "Ghost", salary: 12000 },
+                { name: "BRICK", class: "Breacher", salary: 5000 }
             ],
             contracts: [
-                { id: 1, name: "Pawn Shop Hit", risk: 20, payout: 12000, desc: "Low heat. Fast cash." },
-                { id: 2, name: "Armored Truck", risk: 50, payout: 45000, desc: "Standard syndicate op." },
-                { id: 3, name: "Corporate Sabotage", risk: 80, payout: 250000, desc: "High casualties likely." }
+                { id: 1, name: "Pawn Shop Hit", risk: 20, payout: 12000 },
+                { id: 2, name: "Armored Truck", risk: 50, payout: 45000 },
+                { id: 3, name: "Data Skim", risk: 75, payout: 150000 }
+            ],
+            market: [
+                { name: "VIPER", class: "Hacker", fee: 15000, salary: 4000 },
+                { name: "TRENCH", class: "Enforcer", fee: 2000, salary: 500 },
+                { name: "SPARK", class: "Rookie", fee: 5000, salary: 1000 }
             ]
         };
 
@@ -140,32 +154,60 @@
             const rosterDiv = document.getElementById('roster-list');
             rosterDiv.innerHTML = '';
             let totalPayroll = 0;
-            gameData.roster.forEach(op => {
-                totalPayroll += op.salary;
-                rosterDiv.innerHTML += `
-                    <div class="list-item">
-                        <span><strong>${op.name}</strong> [${op.class}]</span>
-                        <span class="danger">-$${op.salary.toLocaleString()}</span>
-                    </div>`;
-            });
+            
+            if (gameData.roster.length === 0) {
+                rosterDiv.innerHTML = `<div class="list-item danger">NO ACTIVE OPERATIVES</div>`;
+            } else {
+                gameData.roster.forEach(op => {
+                    totalPayroll += op.salary;
+                    rosterDiv.innerHTML += `
+                        <div class="list-item">
+                            <span><strong>${op.name}</strong><br><small>[${op.class}]</small></span>
+                            <span class="danger">-$${op.salary.toLocaleString()}</span>
+                        </div>`;
+                });
+            }
             document.getElementById('payroll-display').innerText = `-$${totalPayroll.toLocaleString()}`;
 
             // Render Contracts
             const contractsDiv = document.getElementById('contracts-list');
             contractsDiv.innerHTML = '';
             gameData.contracts.forEach((job, index) => {
+                const btnState = gameData.roster.length > 0 ? '' : 'disabled';
                 contractsDiv.innerHTML += `
                     <div class="list-item" style="flex-direction: column; align-items: flex-start;">
                         <div style="width: 100%; display: flex; justify-content: space-between; margin-bottom: 5px;">
                             <span><strong>${job.name}</strong></span>
                             <span class="success">+$${job.payout.toLocaleString()}</span>
                         </div>
-                        <div style="width: 100%; display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; color: #888;">
-                            <span>Risk: ${job.risk}% | ${job.desc}</span>
-                            <button onclick="executeContract(${index})">DEPLOY SQUAD</button>
+                        <div style="width: 100%; display: flex; justify-content: space-between; align-items: center;">
+                            <span style="color: #888;">Risk: ${job.risk}%</span>
+                            <button onclick="executeContract(${index})" ${btnState}>DEPLOY</button>
                         </div>
                     </div>`;
             });
+
+            // Render Market
+            const marketDiv = document.getElementById('market-list');
+            marketDiv.innerHTML = '';
+            if (gameData.market.length === 0) {
+                marketDiv.innerHTML = `<div class="list-item" style="color: #888;">MARKET EMPTY. CHECK BACK LATER.</div>`;
+            } else {
+                gameData.market.forEach((recruit, index) => {
+                    const btnState = gameData.cash >= recruit.fee ? '' : 'disabled';
+                    marketDiv.innerHTML += `
+                        <div class="list-item" style="flex-direction: column; align-items: flex-start;">
+                            <div style="width: 100%; display: flex; justify-content: space-between; margin-bottom: 5px;">
+                                <span><strong>${recruit.name}</strong><br><small>[${recruit.class}]</small></span>
+                                <span class="market">-$${recruit.fee.toLocaleString()}</span>
+                            </div>
+                            <div style="width: 100%; display: flex; justify-content: space-between; align-items: center;">
+                                <span class="danger" style="font-size: 0.7rem;">Pay: $${recruit.salary}/wk</span>
+                                <button class="market-btn" onclick="hireOperative(${index})" ${btnState}>HIRE</button>
+                            </div>
+                        </div>`;
+                });
+            }
 
             return totalPayroll;
         }
@@ -175,23 +217,24 @@
             let colorClass = '';
             if (type === 'danger') colorClass = 'danger';
             if (type === 'success') colorClass = 'success';
+            if (type === 'market') colorClass = 'market';
             
             logPanel.innerHTML += `<div class="log-entry ${colorClass}">> ${msg}</div>`;
             logPanel.scrollTop = logPanel.scrollHeight;
         }
 
-        // --- CORE LOOP & MATH ---
+        // --- CORE LOGIC ---
         function processPayroll() {
             let payroll = 0;
             gameData.roster.forEach(op => payroll += op.salary);
             
             if (gameData.cash < payroll) {
-                logMessage("CRITICAL: INSUFFICIENT FUNDS. OPERATIVES ABANDONING SYNDICATE. GAME OVER.", 'danger');
+                logMessage("CRITICAL: INSUFFICIENT FUNDS. SYNDICATE COLLAPSED. GAME OVER.", 'danger');
                 document.querySelectorAll('button').forEach(b => b.disabled = true);
                 return false;
             }
             gameData.cash -= payroll;
-            logMessage(`PAYROLL DEDUCTED: -$${payroll.toLocaleString()}`, 'danger');
+            if (payroll > 0) logMessage(`PAYROLL DEDUCTED: -$${payroll.toLocaleString()}`, 'danger');
             return true;
         }
 
@@ -199,35 +242,51 @@
             logMessage(`--- ADVANCING TO WEEK ${gameData.week + 1} ---`);
             if (processPayroll()) {
                 gameData.week++;
+                
+                // 30% chance to refresh the market each week
+                if (Math.random() < 0.3) {
+                    logMessage("BLACK MARKET REFRESHED NEW MERCS.", 'market');
+                    gameData.market.push({ name: "RANDO-" + Math.floor(Math.random()*99), class: "Grunt", fee: 3000, salary: 800 });
+                }
+                updateUI();
+            }
+        }
+
+        function hireOperative(index) {
+            const recruit = gameData.market[index];
+            if (gameData.cash >= recruit.fee) {
+                gameData.cash -= recruit.fee;
+                gameData.roster.push(recruit);
+                gameData.market.splice(index, 1); // Remove from market
+                logMessage(`HIRED ${recruit.name} FOR $${recruit.fee.toLocaleString()}.`, 'market');
                 updateUI();
             }
         }
 
         function executeContract(index) {
+            if (gameData.roster.length === 0) return;
+            
             const job = gameData.contracts[index];
             logMessage(`INITIATING OP: ${job.name}...`);
             
-            // Simple RNG Mechanics (1 to 100)
             const roll = Math.floor(Math.random() * 100) + 1;
             
             setTimeout(() => {
-                // If you roll higher than the risk, you win.
                 if (roll > job.risk) {
-                    logMessage(`OP SUCCESS. SQUAD EXTRACTED. TARGET ACQUIRED: +$${job.payout.toLocaleString()}`, 'success');
+                    logMessage(`OP SUCCESS. TARGET ACQUIRED: +$${job.payout.toLocaleString()}`, 'success');
                     gameData.cash += job.payout;
                 } else {
-                    logMessage(`OP FAILED. SQUAD AMBUSHED. MISSION ABORTED. PAYOUT DENIED.`, 'danger');
+                    // SOMEONE DIES
+                    const deadOpIndex = Math.floor(Math.random() * gameData.roster.length);
+                    const deadOp = gameData.roster.splice(deadOpIndex, 1)[0];
+                    logMessage(`AMBUSHED. MISSION ABORTED.`, 'danger');
+                    logMessage(`FATAL CASUALTY: ${deadOp.name} IS K.I.A.`, 'danger');
                 }
                 
-                // Running a contract takes a week of time
-                setTimeout(() => {
-                    advanceWeek();
-                }, 1000);
-                
-            }, 1000); // Dramatic 1-second pause
+                setTimeout(() => { advanceWeek(); }, 1000);
+            }, 1000); 
         }
 
-        // Initialize
         updateUI();
     </script>
 </body>

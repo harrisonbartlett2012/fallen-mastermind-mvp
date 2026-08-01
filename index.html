@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FALLEN MASTERMIND // TERMINAL</title>
+    <style>
+        :root {
+            --bg-color: #0d0d0d;
+            --panel-bg: #1a1a1a;
+            --text-main: #e0e0e0;
+            --neon-blue: #00f3ff;
+            --neon-red: #ff003c;
+            --border-color: #333;
+        }
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: 'Courier New', Courier, monospace;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .header {
+            width: 100%;
+            max-width: 800px;
+            display: flex;
+            justify-content: space-between;
+            border-bottom: 2px solid var(--neon-blue);
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        .stat { font-size: 1.2rem; font-weight: bold; }
+        .cash { color: #00ff66; }
+        
+        .container {
+            width: 100%;
+            max-width: 800px;
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+        }
+        .panel {
+            background-color: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            padding: 15px;
+            border-radius: 4px;
+        }
+        .roster-item {
+            display: flex;
+            justify-content: space-between;
+            border-bottom: 1px dashed var(--border-color);
+            padding: 10px 0;
+        }
+        
+        button {
+            background-color: transparent;
+            color: var(--neon-blue);
+            border: 1px solid var(--neon-blue);
+            padding: 10px 20px;
+            font-family: inherit;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            width: 100%;
+            margin-top: 10px;
+        }
+        button:hover {
+            background-color: var(--neon-blue);
+            color: #000;
+        }
+        .log-panel {
+            height: 150px;
+            overflow-y: auto;
+            color: #888;
+            font-size: 0.9rem;
+        }
+        .log-entry { margin-bottom: 5px; }
+        .danger { color: var(--neon-red); }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <div class="stat">WEEK: <span id="week-display">1</span></div>
+        <div class="stat">DIRTY CASH: $<span id="cash-display" class="cash">50000</span></div>
+    </div>
+
+    <div class="container">
+        <div class="panel">
+            <h3 style="margin-top: 0; color: var(--neon-blue);">// ACTIVE ROSTER</h3>
+            <div id="roster-list"></div>
+            <div style="margin-top: 15px; border-top: 1px solid #333; padding-top: 10px; text-align: right;">
+                TOTAL PAYROLL: $<span id="payroll-display" class="danger">0</span> / week
+            </div>
+        </div>
+
+        <div class="panel">
+            <button onclick="advanceWeek()">> EXECUTE_NEXT_WEEK</button>
+        </div>
+
+        <div class="panel log-panel" id="terminal-log">
+            <div class="log-entry">> ORACLE AI ONLINE. WAITING FOR COMMANDS.</div>
+        </div>
+    </div>
+
+    <script>
+        // --- GAME STATE ---
+        let gameData = {
+            week: 1,
+            cash: 50000,
+            roster: [
+                { name: "CROSSHAIR", class: "Rookie Sniper", salary: 1500 },
+                { name: "GHOST-01", class: "Elite Ghost", salary: 12000 },
+                { name: "BRICK", class: "Veteran Breacher", salary: 5000 },
+                { name: "GRUNT_A", class: "Enforcer", salary: 500 }
+            ]
+        };
+
+        // --- UI UPDATERS ---
+        function updateUI() {
+            document.getElementById('week-display').innerText = gameData.week;
+            document.getElementById('cash-display').innerText = gameData.cash.toLocaleString();
+            
+            const rosterDiv = document.getElementById('roster-list');
+            rosterDiv.innerHTML = '';
+            let totalPayroll = 0;
+
+            gameData.roster.forEach(op => {
+                totalPayroll += op.salary;
+                rosterDiv.innerHTML += `
+                    <div class="roster-item">
+                        <span><strong>${op.name}</strong> [${op.class}]</span>
+                        <span class="danger">-$${op.salary.toLocaleString()}</span>
+                    </div>
+                `;
+            });
+
+            document.getElementById('payroll-display').innerText = totalPayroll.toLocaleString();
+            return totalPayroll;
+        }
+
+        function logMessage(msg, isDanger = false) {
+            const logPanel = document.getElementById('terminal-log');
+            const colorClass = isDanger ? 'danger' : '';
+            logPanel.innerHTML += `<div class="log-entry ${colorClass}">> ${msg}</div>`;
+            logPanel.scrollTop = logPanel.scrollHeight;
+        }
+
+        // --- GAME LOGIC ---
+        function advanceWeek() {
+            const payroll = updateUI();
+            
+            if (gameData.cash < payroll) {
+                logMessage("FUNDS INSUFFICIENT. OPERATIVES ABANDONING SYNDICATE. GAME OVER.", true);
+                document.querySelector('button').disabled = true;
+                return;
+            }
+
+            gameData.cash -= payroll;
+            gameData.week++;
+            
+            updateUI();
+            logMessage(`WEEK ${gameData.week} STARTED. PAYROLL DEDUCTED: -$${payroll.toLocaleString()}`, true);
+        }
+
+        // Initialize on load
+        updateUI();
+    </script>
+</body>
+</html>

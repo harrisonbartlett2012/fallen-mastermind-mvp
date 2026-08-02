@@ -46,7 +46,6 @@
             pointer-events: none;
         }
 
-        /* Ambient Glow Effect */
         .header, .panel {
             box-shadow: 0 0 10px rgba(0, 243, 255, 0.05);
         }
@@ -211,6 +210,59 @@
     </div>
 
     <script>
+        // --- SYNTHESIZED AUDIO ENGINE (Web Audio API) ---
+        let audioCtx = null;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+
+        function playSound(type) {
+            initAudio();
+            if (!audioCtx) return;
+
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            const now = audioCtx.currentTime;
+
+            if (type === 'click') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(800, now);
+                gain.gain.setValueAtTime(0.05, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.03);
+                osc.start(now);
+                osc.stop(now + 0.03);
+            } else if (type === 'success') {
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(440, now);
+                osc.frequency.setValueAtTime(880, now + 0.08);
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+                osc.start(now);
+                osc.stop(now + 0.25);
+            } else if (type === 'danger') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(150, now);
+                osc.frequency.linearRampToValueAtTime(80, now + 0.2);
+                gain.gain.setValueAtTime(0.12, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+                osc.start(now);
+                osc.stop(now + 0.2);
+            }
+        }
+
+        // Attach global click sounds
+        document.addEventListener('click', (e) => {
+            if (e.target.tagName === 'BUTTON') {
+                playSound('click');
+            }
+        });
+
         // --- GAME STATE ---
         let gameData = {
             week: 1,
@@ -267,7 +319,7 @@
                 if (i < fullText.length) {
                     newEntry.textContent += fullText.charAt(i);
                     i++;
-                    setTimeout(typeChar, 15); // Speed of typing effect
+                    setTimeout(typeChar, 12);
                 }
                 logPanel.scrollTop = logPanel.scrollHeight;
             }
@@ -401,6 +453,7 @@
         // --- CORE LOGIC ---
         function checkHeat() {
             if (gameData.heat >= 100) {
+                playSound('danger');
                 typeLogMessage("WARNING: HEAT CAPACITY EXCEEDED. SYNDICATE RAID IN PROGRESS.", 'danger');
                 
                 let cashLost = Math.floor(gameData.cash * 0.3);
@@ -416,6 +469,7 @@
 
         function bribeOfficials() {
             if (gameData.cash >= 15000) {
+                playSound('success');
                 gameData.cash -= 15000;
                 gameData.heat -= 25;
                 if (gameData.heat < 0) gameData.heat = 0;
@@ -430,6 +484,7 @@
             if (gameData.baseRooms.find(r => r.id === "b2").owned) { totalPayroll = Math.floor(totalPayroll * 0.85); }
             
             if (gameData.cash < totalPayroll) {
+                playSound('danger');
                 typeLogMessage("CRITICAL: INSUFFICIENT FUNDS. SYNDICATE COLLAPSED. GAME OVER.", 'danger');
                 document.querySelectorAll('button').forEach(b => b.disabled = true);
                 gameData.gameOver = true;
@@ -463,6 +518,7 @@
         function hireOperative(index) {
             const recruit = gameData.market[index];
             if (gameData.cash >= recruit.fee) {
+                playSound('success');
                 gameData.cash -= recruit.fee;
                 gameData.roster.push(recruit);
                 gameData.market.splice(index, 1);
@@ -474,6 +530,7 @@
         function buyUpgrade(index) {
             const upg = gameData.upgrades[index];
             if (gameData.cash >= upg.cashCost && gameData.intel >= upg.intelCost) {
+                playSound('success');
                 gameData.cash -= upg.cashCost;
                 gameData.intel -= upg.intelCost;
                 upg.owned = true;
@@ -484,21 +541,23 @@
         }
 
         function triggerWinSequence() {
+            playSound('success');
             gameData.gameOver = true;
             document.getElementById('main-container').innerHTML = '';
             document.getElementById('terminal-log').style.height = '60vh';
             
             typeLogMessage("EXECUTING PROJECT OLYMPUS...", 'win');
-            setTimeout(() => { typeLogMessage("RIVAL SYNDICATES NEUTRALIZED.", 'win'); }, 1000);
-            setTimeout(() => { typeLogMessage("GOVERNMENT BLACK SITES COMPROMISED.", 'win'); }, 2000);
-            setTimeout(() => { typeLogMessage("GLOBAL OVERWATCH ESTABLISHED.", 'win'); }, 3000);
+            setTimeout(() => { playSound('success'); typeLogMessage("RIVAL SYNDICATES NEUTRALIZED.", 'win'); }, 1000);
+            setTimeout(() => { playSound('success'); typeLogMessage("GOVERNMENT BLACK SITES COMPROMISED.", 'win'); }, 2000);
+            setTimeout(() => { playSound('success'); typeLogMessage("GLOBAL OVERWATCH ESTABLISHED.", 'win'); }, 3000);
             setTimeout(() => { typeLogMessage("==========================================", 'win'); }, 4000);
-            setTimeout(() => { typeLogMessage("MISSION ACCOMPLISHED. YOU ARE THE MASTERMIND.", 'win'); }, 4500);
+            setTimeout(() => { playSound('success'); typeLogMessage("MISSION ACCOMPLISHED. YOU ARE THE MASTERMIND.", 'win'); }, 4500);
         }
 
         function buyRoom(index) {
             const room = gameData.baseRooms[index];
             if (gameData.cash >= room.cashCost && gameData.intel >= room.intelCost) {
+                playSound('success');
                 gameData.cash -= room.cashCost;
                 gameData.intel -= room.intelCost;
                 room.owned = true;
@@ -525,12 +584,14 @@
             
             setTimeout(() => {
                 if (roll > currentRisk) {
+                    playSound('success');
                     gameData.heat += job.heatInc;
                     typeLogMessage(`OP SUCCESS. ACQUIRED: +$${job.payout.toLocaleString()} | +${job.intelReward} Intel`, 'success');
                     typeLogMessage(`HEAT LEVEL INCREASED BY ${job.heatInc}%`, 'danger');
                     gameData.cash += job.payout;
                     gameData.intel += job.intelReward;
                 } else {
+                    playSound('danger');
                     const deadOpIndex = Math.floor(Math.random() * gameData.roster.length);
                     const deadOp = gameData.roster[deadOpIndex];
                     

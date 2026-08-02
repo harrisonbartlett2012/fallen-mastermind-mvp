@@ -6,17 +6,18 @@
     <title>FALLEN MASTERMIND // TERMINAL</title>
     <style>
         :root {
-            --bg-color: #0d0d0d;
-            --panel-bg: #1a1a1a;
-            --text-main: #e0e0e0;
+            --bg-color: #0a0a0c;
+            --panel-bg: rgba(20, 20, 25, 0.85);
+            --text-main: #d0d0d0;
             --neon-blue: #00f3ff;
             --neon-red: #ff003c;
             --neon-green: #00ff66;
             --neon-purple: #b700ff;
             --neon-yellow: #ffea00;
             --neon-orange: #ff7300;
-            --border-color: #333;
+            --border-color: #1f2d3d;
         }
+
         body {
             background-color: var(--bg-color);
             color: var(--text-main);
@@ -26,7 +27,30 @@
             display: flex;
             flex-direction: column;
             align-items: center;
+            position: relative;
+            min-height: 100vh;
+            box-sizing: border-box;
+            overflow-x: hidden;
         }
+
+        /* --- CRT SCANLINE & GLOW OVERLAY --- */
+        body::before {
+            content: " ";
+            display: block;
+            position: fixed;
+            top: 0; left: 0; bottom: 0; right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), 
+                        linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+            z-index: 100;
+            background-size: 100% 4px, 6px 100%;
+            pointer-events: none;
+        }
+
+        /* Ambient Glow Effect */
+        .header, .panel {
+            box-shadow: 0 0 10px rgba(0, 243, 255, 0.05);
+        }
+
         .header {
             width: 100%;
             max-width: 1400px;
@@ -35,11 +59,13 @@
             border-bottom: 2px solid var(--neon-blue);
             padding-bottom: 10px;
             margin-bottom: 20px;
+            text-shadow: 0 0 5px rgba(0, 243, 255, 0.5);
         }
+
         .stat { font-size: 1.1rem; font-weight: bold; }
-        .cash { color: var(--neon-green); }
-        .intel { color: var(--neon-yellow); }
-        .heat { color: var(--neon-red); }
+        .cash { color: var(--neon-green); text-shadow: 0 0 5px rgba(0, 255, 102, 0.4); }
+        .intel { color: var(--neon-yellow); text-shadow: 0 0 5px rgba(255, 234, 0, 0.4); }
+        .heat { color: var(--neon-red); text-shadow: 0 0 5px rgba(255, 0, 60, 0.4); }
         
         .container {
             width: 100%;
@@ -47,19 +73,23 @@
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
             gap: 15px;
+            z-index: 1;
         }
+
         .panel {
             background-color: var(--panel-bg);
             border: 1px solid var(--border-color);
             padding: 15px;
             border-radius: 4px;
+            backdrop-filter: blur(4px);
         }
+
         .panel-full { grid-column: 1 / -1; }
         
-        h3 { margin-top: 0; color: var(--neon-blue); border-bottom: 1px solid #333; padding-bottom: 5px; font-size: 1rem; }
-        .market-title { color: var(--neon-purple); }
-        .armory-title { color: var(--neon-yellow); }
-        .base-title { color: var(--neon-orange); }
+        h3 { margin-top: 0; color: var(--neon-blue); border-bottom: 1px solid var(--border-color); padding-bottom: 5px; font-size: 1rem; text-shadow: 0 0 5px var(--neon-blue); }
+        .market-title { color: var(--neon-purple); text-shadow: 0 0 5px var(--neon-purple); }
+        .armory-title { color: var(--neon-yellow); text-shadow: 0 0 5px var(--neon-yellow); }
+        .base-title { color: var(--neon-orange); text-shadow: 0 0 5px var(--neon-orange); }
         
         .list-item {
             display: flex;
@@ -69,6 +99,7 @@
             align-items: center;
             font-size: 0.85rem;
         }
+
         .danger { color: var(--neon-red); }
         .success { color: var(--neon-green); }
         .market { color: var(--neon-purple); }
@@ -82,20 +113,39 @@
             font-size: 0.8rem;
             cursor: pointer;
             transition: all 0.2s;
+            text-shadow: 0 0 3px var(--neon-blue);
         }
-        button:hover { background-color: var(--neon-blue); color: #000; }
-        button:disabled { border-color: #555; color: #555; cursor: not-allowed; background: none; }
-        .market-btn { color: var(--neon-purple); border-color: var(--neon-purple); }
-        .market-btn:hover { background-color: var(--neon-purple); color: #fff; }
-        .armory-btn { color: var(--neon-yellow); border-color: var(--neon-yellow); }
-        .armory-btn:hover { background-color: var(--neon-yellow); color: #000; }
-        .base-btn { color: var(--neon-orange); border-color: var(--neon-orange); }
-        .base-btn:hover { background-color: var(--neon-orange); color: #000; }
+
+        button:hover { 
+            background-color: var(--neon-blue); 
+            color: #000; 
+            box-shadow: 0 0 10px var(--neon-blue); 
+            text-shadow: none; 
+        }
+
+        button:disabled { border-color: #333; color: #444; cursor: not-allowed; background: none; text-shadow: none; box-shadow: none; }
+
+        .market-btn { color: var(--neon-purple); border-color: var(--neon-purple); text-shadow: 0 0 3px var(--neon-purple); }
+        .market-btn:hover { background-color: var(--neon-purple); color: #fff; box-shadow: 0 0 10px var(--neon-purple); }
+        
+        .armory-btn { color: var(--neon-yellow); border-color: var(--neon-yellow); text-shadow: 0 0 3px var(--neon-yellow); }
+        .armory-btn:hover { background-color: var(--neon-yellow); color: #000; box-shadow: 0 0 10px var(--neon-yellow); }
+        
+        .base-btn { color: var(--neon-orange); border-color: var(--neon-orange); text-shadow: 0 0 3px var(--neon-orange); }
+        .base-btn:hover { background-color: var(--neon-orange); color: #000; box-shadow: 0 0 10px var(--neon-orange); }
         
         .execute-btn { width: 100%; margin-top: 15px; font-size: 1.1rem; padding: 12px; }
-        .log-panel { height: 200px; overflow-y: auto; color: #888; font-size: 0.9rem; }
+        
+        .log-panel { 
+            height: 200px; 
+            overflow-y: auto; 
+            color: #aaa; 
+            font-size: 0.9rem;
+            border-color: var(--neon-blue);
+        }
+
         .log-entry { margin-bottom: 5px; }
-        .win-text { color: var(--neon-green); font-weight: bold; font-size: 1.2rem; }
+        .win-text { color: var(--neon-green); font-weight: bold; font-size: 1.2rem; text-shadow: 0 0 10px var(--neon-green); }
     </style>
 </head>
 <body>
@@ -154,7 +204,7 @@
         </div>
     </div>
 
-    <div class="container">
+    <div class="container" style="margin-top: 15px;">
         <div class="panel panel-full log-panel" id="terminal-log">
             <div class="log-entry">> ORACLE AI ONLINE. AWAITING DIRECTIVES.</div>
         </div>
@@ -195,6 +245,35 @@
             ]
         };
 
+        // --- TYPING ANIMATION FOR TERMINAL LOG ---
+        function typeLogMessage(msg, type = 'normal') {
+            const logPanel = document.getElementById('terminal-log');
+            let colorClass = '';
+            if (type === 'danger') colorClass = 'danger';
+            if (type === 'success') colorClass = 'success';
+            if (type === 'market') colorClass = 'market';
+            if (type === 'armory') colorClass = 'armory-title';
+            if (type === 'base') colorClass = 'base-title';
+            if (type === 'win') colorClass = 'win-text';
+
+            const newEntry = document.createElement('div');
+            newEntry.className = `log-entry ${colorClass}`;
+            logPanel.appendChild(newEntry);
+
+            let i = 0;
+            const fullText = `> ${msg}`;
+            
+            function typeChar() {
+                if (i < fullText.length) {
+                    newEntry.textContent += fullText.charAt(i);
+                    i++;
+                    setTimeout(typeChar, 15); // Speed of typing effect
+                }
+                logPanel.scrollTop = logPanel.scrollHeight;
+            }
+            typeChar();
+        }
+
         // --- UI UPDATERS ---
         function updateUI() {
             if (gameData.gameOver) return;
@@ -205,7 +284,6 @@
             document.getElementById('heat-display').innerText = gameData.heat;
             document.getElementById('risk-reduction-display').innerText = gameData.globalRiskReduction;
             
-            // Heat Color Warning
             const heatUI = document.getElementById('heat-display');
             if (gameData.heat >= 80) { heatUI.style.color = 'var(--neon-red)'; } 
             else if (gameData.heat >= 50) { heatUI.style.color = 'var(--neon-orange)'; } 
@@ -213,14 +291,12 @@
             
             document.getElementById('bribe-btn').disabled = gameData.cash < 15000;
 
-            // Calculate Payroll
             let totalPayroll = 0;
             gameData.roster.forEach(op => totalPayroll += op.salary);
             if (gameData.baseRooms.find(r => r.id === "b2").owned) {
                 totalPayroll = Math.floor(totalPayroll * 0.85);
             }
 
-            // Render Roster
             const rosterDiv = document.getElementById('roster-list');
             rosterDiv.innerHTML = '';
             if (gameData.roster.length === 0) {
@@ -236,7 +312,6 @@
             }
             document.getElementById('payroll-display').innerText = `-$${totalPayroll.toLocaleString()}`;
 
-            // Render Contracts
             const contractsDiv = document.getElementById('contracts-list');
             contractsDiv.innerHTML = '';
             gameData.contracts.forEach((job, index) => {
@@ -257,7 +332,6 @@
                     </div>`;
             });
 
-            // Render Market
             const marketDiv = document.getElementById('market-list');
             marketDiv.innerHTML = '';
             if (gameData.market.length === 0) {
@@ -279,7 +353,6 @@
                 });
             }
 
-            // Render Armory
             const armoryDiv = document.getElementById('armory-list');
             armoryDiv.innerHTML = '';
             gameData.upgrades.forEach((upg, index) => {
@@ -300,12 +373,11 @@
                 }
             });
 
-            // Render Safehouse
             const baseDiv = document.getElementById('base-list');
             baseDiv.innerHTML = '';
             gameData.baseRooms.forEach((room, index) => {
                 if (room.owned) {
-                    armoryDiv.innerHTML += `<div class="list-item" style="color: #555;"><span><s>${room.name}</s></span><span class="success">ONLINE</span></div>`;
+                    baseDiv.innerHTML += `<div class="list-item" style="color: #555;"><span><s>${room.name}</s></span><span class="success">ONLINE</span></div>`;
                 } else {
                     const btnState = (gameData.cash >= room.cashCost && gameData.intel >= room.intelCost) ? '' : 'disabled';
                     let titleStyle = room.effect === 'win' ? 'color: var(--neon-green); text-shadow: 0 0 5px var(--neon-green);' : '';
@@ -326,34 +398,19 @@
             return totalPayroll;
         }
 
-        function logMessage(msg, type = 'normal') {
-            const logPanel = document.getElementById('terminal-log');
-            let colorClass = '';
-            if (type === 'danger') colorClass = 'danger';
-            if (type === 'success') colorClass = 'success';
-            if (type === 'market') colorClass = 'market';
-            if (type === 'armory') colorClass = 'armory-title';
-            if (type === 'base') colorClass = 'base-title';
-            if (type === 'win') colorClass = 'win-text';
-            
-            logPanel.innerHTML += `<div class="log-entry ${colorClass}">> ${msg}</div>`;
-            logPanel.scrollTop = logPanel.scrollHeight;
-        }
-
         // --- CORE LOGIC ---
         function checkHeat() {
             if (gameData.heat >= 100) {
-                logMessage("WARNING: HEAT CAPACITY EXCEEDED. SYNDICATE RAID IN PROGRESS.", 'danger');
+                typeLogMessage("WARNING: HEAT CAPACITY EXCEEDED. SYNDICATE RAID IN PROGRESS.", 'danger');
                 
-                // Raid Penalties: Lose 30% of cash and 50% of intel
                 let cashLost = Math.floor(gameData.cash * 0.3);
                 let intelLost = Math.floor(gameData.intel * 0.5);
                 
                 gameData.cash -= cashLost;
                 gameData.intel -= intelLost;
-                gameData.heat = 0; // Reset heat after raid
+                gameData.heat = 0;
                 
-                logMessage(`RAID DEFENDED, BUT LOSSES SUSTAINED: -$${cashLost.toLocaleString()} | -${intelLost} Intel`, 'danger');
+                typeLogMessage(`RAID DEFENDED, BUT LOSSES SUSTAINED: -$${cashLost.toLocaleString()} | -${intelLost} Intel`, 'danger');
             }
         }
 
@@ -362,7 +419,7 @@
                 gameData.cash -= 15000;
                 gameData.heat -= 25;
                 if (gameData.heat < 0) gameData.heat = 0;
-                logMessage("OFFICIALS BRIBED. HEAT LEVEL REDUCED BY 25%.", 'base');
+                typeLogMessage("OFFICIALS BRIBED. HEAT LEVEL REDUCED BY 25%.", 'base');
                 updateUI();
             }
         }
@@ -373,30 +430,30 @@
             if (gameData.baseRooms.find(r => r.id === "b2").owned) { totalPayroll = Math.floor(totalPayroll * 0.85); }
             
             if (gameData.cash < totalPayroll) {
-                logMessage("CRITICAL: INSUFFICIENT FUNDS. SYNDICATE COLLAPSED. GAME OVER.", 'danger');
+                typeLogMessage("CRITICAL: INSUFFICIENT FUNDS. SYNDICATE COLLAPSED. GAME OVER.", 'danger');
                 document.querySelectorAll('button').forEach(b => b.disabled = true);
                 gameData.gameOver = true;
                 return false;
             }
             gameData.cash -= totalPayroll;
-            if (totalPayroll > 0) logMessage(`PAYROLL DEDUCTED: -$${totalPayroll.toLocaleString()}`, 'danger');
+            if (totalPayroll > 0) typeLogMessage(`PAYROLL DEDUCTED: -$${totalPayroll.toLocaleString()}`, 'danger');
             return true;
         }
 
         function advanceWeek() {
-            checkHeat(); // Check if raid happens before moving to next week
+            checkHeat();
             
-            logMessage(`--- ADVANCING TO WEEK ${gameData.week + 1} ---`);
+            typeLogMessage(`--- ADVANCING TO WEEK ${gameData.week + 1} ---`);
             if (processPayroll()) {
                 gameData.week++;
                 
                 if (gameData.baseRooms.find(r => r.id === "b1").owned) {
                     gameData.intel += 3;
-                    logMessage(`SERVER FARM MINED +3 INTEL.`, 'base');
+                    typeLogMessage(`SERVER FARM MINED +3 INTEL.`, 'base');
                 }
 
                 if (Math.random() < 0.3) {
-                    logMessage("BLACK MARKET REFRESHED NEW MERCS.", 'market');
+                    typeLogMessage("BLACK MARKET REFRESHED NEW MERCS.", 'market');
                     gameData.market.push({ name: "RANDO-" + Math.floor(Math.random()*99), class: "Grunt", fee: 3000, salary: 800 });
                 }
                 updateUI();
@@ -409,7 +466,7 @@
                 gameData.cash -= recruit.fee;
                 gameData.roster.push(recruit);
                 gameData.market.splice(index, 1);
-                logMessage(`HIRED ${recruit.name}.`, 'market');
+                typeLogMessage(`HIRED ${recruit.name}.`, 'market');
                 updateUI();
             }
         }
@@ -421,22 +478,22 @@
                 gameData.intel -= upg.intelCost;
                 upg.owned = true;
                 gameData.globalRiskReduction += upg.riskBonus;
-                logMessage(`ARMORY UPGRADED: ${upg.name}. GLOBAL COMBAT RISK REDUCED.`, 'armory');
+                typeLogMessage(`ARMORY UPGRADED: ${upg.name}. GLOBAL COMBAT RISK REDUCED.`, 'armory');
                 updateUI();
             }
         }
 
         function triggerWinSequence() {
             gameData.gameOver = true;
-            document.getElementById('main-container').innerHTML = ''; // Clear UI
-            document.getElementById('terminal-log').style.height = '60vh'; // Expand Log
+            document.getElementById('main-container').innerHTML = '';
+            document.getElementById('terminal-log').style.height = '60vh';
             
-            logMessage("EXECUTING PROJECT OLYMPUS...", 'win');
-            setTimeout(() => { logMessage("RIVAL SYNDICATES NEUTRALIZED.", 'win'); }, 1000);
-            setTimeout(() => { logMessage("GOVERNMENT BLACK SITES COMPROMISED.", 'win'); }, 2000);
-            setTimeout(() => { logMessage("GLOBAL OVERWATCH ESTABLISHED.", 'win'); }, 3000);
-            setTimeout(() => { logMessage("==========================================", 'win'); }, 4000);
-            setTimeout(() => { logMessage("MISSION ACCOMPLISHED. YOU ARE THE MASTERMIND.", 'win'); }, 4500);
+            typeLogMessage("EXECUTING PROJECT OLYMPUS...", 'win');
+            setTimeout(() => { typeLogMessage("RIVAL SYNDICATES NEUTRALIZED.", 'win'); }, 1000);
+            setTimeout(() => { typeLogMessage("GOVERNMENT BLACK SITES COMPROMISED.", 'win'); }, 2000);
+            setTimeout(() => { typeLogMessage("GLOBAL OVERWATCH ESTABLISHED.", 'win'); }, 3000);
+            setTimeout(() => { typeLogMessage("==========================================", 'win'); }, 4000);
+            setTimeout(() => { typeLogMessage("MISSION ACCOMPLISHED. YOU ARE THE MASTERMIND.", 'win'); }, 4500);
         }
 
         function buyRoom(index) {
@@ -449,7 +506,7 @@
                 if (room.effect === 'win') {
                     triggerWinSequence();
                 } else {
-                    logMessage(`SAFEHOUSE EXPANDED: ${room.name} ONLINE.`, 'base');
+                    typeLogMessage(`SAFEHOUSE EXPANDED: ${room.name} ONLINE.`, 'base');
                     updateUI();
                 }
             }
@@ -462,29 +519,29 @@
             let currentRisk = job.baseRisk - gameData.globalRiskReduction;
             if (currentRisk < 5) currentRisk = 5;
 
-            logMessage(`INITIATING OP: ${job.name}. Calculated Risk: ${currentRisk}%...`);
+            typeLogMessage(`INITIATING OP: ${job.name}. Calculated Risk: ${currentRisk}%...`);
             
             const roll = Math.floor(Math.random() * 100) + 1;
             
             setTimeout(() => {
                 if (roll > currentRisk) {
                     gameData.heat += job.heatInc;
-                    logMessage(`OP SUCCESS. ACQUIRED: +$${job.payout.toLocaleString()} | +${job.intelReward} Intel`, 'success');
-                    logMessage(`HEAT LEVEL INCREASED BY ${job.heatInc}%`, 'danger');
+                    typeLogMessage(`OP SUCCESS. ACQUIRED: +$${job.payout.toLocaleString()} | +${job.intelReward} Intel`, 'success');
+                    typeLogMessage(`HEAT LEVEL INCREASED BY ${job.heatInc}%`, 'danger');
                     gameData.cash += job.payout;
                     gameData.intel += job.intelReward;
                 } else {
                     const deadOpIndex = Math.floor(Math.random() * gameData.roster.length);
                     const deadOp = gameData.roster[deadOpIndex];
                     
-                    logMessage(`AMBUSHED. MISSION ABORTED.`, 'danger');
+                    typeLogMessage(`AMBUSHED. MISSION ABORTED.`, 'danger');
                     
                     const hasMedBay = gameData.baseRooms.find(r => r.id === "b3").owned;
                     if (hasMedBay && Math.random() > 0.5) {
-                        logMessage(`MED-BAY ACTIVATED. ${deadOp.name} STABILIZED AND SAVED FROM K.I.A.`, 'base');
+                        typeLogMessage(`MED-BAY ACTIVATED. ${deadOp.name} STABILIZED AND SAVED FROM K.I.A.`, 'base');
                     } else {
                         gameData.roster.splice(deadOpIndex, 1);
-                        logMessage(`FATAL CASUALTY: ${deadOp.name} IS K.I.A.`, 'danger');
+                        typeLogMessage(`FATAL CASUALTY: ${deadOp.name} IS K.I.A.`, 'danger');
                     }
                 }
                 setTimeout(() => { advanceWeek(); }, 1000);

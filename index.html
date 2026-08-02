@@ -36,9 +36,10 @@
             padding-bottom: 10px;
             margin-bottom: 20px;
         }
-        .stat { font-size: 1.2rem; font-weight: bold; }
+        .stat { font-size: 1.1rem; font-weight: bold; }
         .cash { color: var(--neon-green); }
         .intel { color: var(--neon-yellow); }
+        .heat { color: var(--neon-red); }
         
         .container {
             width: 100%;
@@ -92,19 +93,21 @@
         .base-btn:hover { background-color: var(--neon-orange); color: #000; }
         
         .execute-btn { width: 100%; margin-top: 15px; font-size: 1.1rem; padding: 12px; }
-        .log-panel { height: 180px; overflow-y: auto; color: #888; font-size: 0.9rem; }
+        .log-panel { height: 200px; overflow-y: auto; color: #888; font-size: 0.9rem; }
         .log-entry { margin-bottom: 5px; }
+        .win-text { color: var(--neon-green); font-weight: bold; font-size: 1.2rem; }
     </style>
 </head>
 <body>
 
     <div class="header">
         <div class="stat">WEEK: <span id="week-display">1</span></div>
+        <div class="stat">HEAT: <span id="heat-display" class="heat">0</span>%</div>
         <div class="stat">INTEL: <span id="intel-display" class="intel">10</span></div>
         <div class="stat">DIRTY CASH: $<span id="cash-display" class="cash">50000</span></div>
     </div>
 
-    <div class="container">
+    <div class="container" id="main-container">
         <div class="panel">
             <h3>// ACTIVE ROSTER</h3>
             <div id="roster-list"></div>
@@ -134,12 +137,24 @@
         <div class="panel">
             <h3 class="base-title">// SAFEHOUSE</h3>
             <div id="base-list"></div>
+            
+            <div class="list-item" style="flex-direction: column; align-items: flex-start; margin-top: 10px; border-top: 2px solid var(--border-color);">
+                <div style="width: 100%; display: flex; justify-content: space-between; margin-bottom: 5px;">
+                    <span><strong>Bribe Officials</strong><br><small>-25% Heat Level</small></span>
+                </div>
+                <div style="width: 100%; display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-size: 0.7rem; color: #aaa;">$15,000 | 0 Int</span>
+                    <button class="base-btn" id="bribe-btn" onclick="bribeOfficials()">BRIBE</button>
+                </div>
+            </div>
         </div>
 
         <div class="panel panel-full">
             <button class="execute-btn" onclick="advanceWeek()">> SKIP WEEK (REST & PAYROLL)</button>
         </div>
+    </div>
 
+    <div class="container">
         <div class="panel panel-full log-panel" id="terminal-log">
             <div class="log-entry">> ORACLE AI ONLINE. AWAITING DIRECTIVES.</div>
         </div>
@@ -151,16 +166,18 @@
             week: 1,
             cash: 50000,
             intel: 10,
+            heat: 0,
             globalRiskReduction: 0,
+            gameOver: false,
             roster: [
                 { name: "CROSSHAIR", class: "Sniper", salary: 1500 },
                 { name: "GHOST-01", class: "Ghost", salary: 12000 },
                 { name: "BRICK", class: "Breacher", salary: 5000 }
             ],
             contracts: [
-                { id: 1, name: "Pawn Shop Hit", baseRisk: 25, payout: 15000, intelReward: 5 },
-                { id: 2, name: "Armored Truck", baseRisk: 55, payout: 50000, intelReward: 15 },
-                { id: 3, name: "Data Skim", baseRisk: 80, payout: 180000, intelReward: 40 }
+                { id: 1, name: "Pawn Shop Hit", baseRisk: 25, payout: 15000, intelReward: 5, heatInc: 10 },
+                { id: 2, name: "Armored Truck", baseRisk: 55, payout: 50000, intelReward: 15, heatInc: 20 },
+                { id: 3, name: "Data Skim", baseRisk: 80, payout: 180000, intelReward: 40, heatInc: 35 }
             ],
             market: [
                 { name: "VIPER", class: "Hacker", fee: 15000, salary: 4000 },
@@ -173,22 +190,34 @@
             baseRooms: [
                 { id: "b1", name: "Server Farm", desc: "+3 Intel / Week", intelCost: 30, cashCost: 50000, owned: false, effect: "intel" },
                 { id: "b2", name: "The Barracks", desc: "-15% Payroll Cost", intelCost: 40, cashCost: 75000, owned: false, effect: "payroll" },
-                { id: "b3", name: "Med-Bay", desc: "50% chance to save K.I.A.", intelCost: 80, cashCost: 150000, owned: false, effect: "medical" }
+                { id: "b3", name: "Med-Bay", desc: "50% chance to save K.I.A.", intelCost: 80, cashCost: 150000, owned: false, effect: "medical" },
+                { id: "b4", name: "Project OLYMPUS", desc: "ENDGAME: Establish Global Syndicate", intelCost: 500, cashCost: 1000000, owned: false, effect: "win" }
             ]
         };
 
         // --- UI UPDATERS ---
         function updateUI() {
+            if (gameData.gameOver) return;
+
             document.getElementById('week-display').innerText = gameData.week;
             document.getElementById('cash-display').innerText = gameData.cash.toLocaleString();
             document.getElementById('intel-display').innerText = gameData.intel;
+            document.getElementById('heat-display').innerText = gameData.heat;
             document.getElementById('risk-reduction-display').innerText = gameData.globalRiskReduction;
             
-            // Calculate Payroll with potential Base Buff
+            // Heat Color Warning
+            const heatUI = document.getElementById('heat-display');
+            if (gameData.heat >= 80) { heatUI.style.color = 'var(--neon-red)'; } 
+            else if (gameData.heat >= 50) { heatUI.style.color = 'var(--neon-orange)'; } 
+            else { heatUI.style.color = 'var(--text-main)'; }
+            
+            document.getElementById('bribe-btn').disabled = gameData.cash < 15000;
+
+            // Calculate Payroll
             let totalPayroll = 0;
             gameData.roster.forEach(op => totalPayroll += op.salary);
             if (gameData.baseRooms.find(r => r.id === "b2").owned) {
-                totalPayroll = Math.floor(totalPayroll * 0.85); // 15% discount
+                totalPayroll = Math.floor(totalPayroll * 0.85);
             }
 
             // Render Roster
@@ -222,7 +251,7 @@
                             <span class="success">+$${job.payout.toLocaleString()}</span>
                         </div>
                         <div style="width: 100%; display: flex; justify-content: space-between; align-items: center;">
-                            <span style="color: #888; font-size: 0.75rem;">Risk: ${currentRisk}% | +${job.intelReward} Intel</span>
+                            <span style="color: #888; font-size: 0.75rem;">Risk: ${currentRisk}% | +${job.heatInc}% Heat</span>
                             <button onclick="executeContract(${index})" ${btnState}>DEPLOY</button>
                         </div>
                     </div>`;
@@ -271,18 +300,20 @@
                 }
             });
 
-            // Render Safehouse Base Rooms
+            // Render Safehouse
             const baseDiv = document.getElementById('base-list');
             baseDiv.innerHTML = '';
             gameData.baseRooms.forEach((room, index) => {
                 if (room.owned) {
-                    baseDiv.innerHTML += `<div class="list-item" style="color: #555;"><span><s>${room.name}</s></span><span class="success">ONLINE</span></div>`;
+                    armoryDiv.innerHTML += `<div class="list-item" style="color: #555;"><span><s>${room.name}</s></span><span class="success">ONLINE</span></div>`;
                 } else {
                     const btnState = (gameData.cash >= room.cashCost && gameData.intel >= room.intelCost) ? '' : 'disabled';
+                    let titleStyle = room.effect === 'win' ? 'color: var(--neon-green); text-shadow: 0 0 5px var(--neon-green);' : '';
+                    
                     baseDiv.innerHTML += `
                         <div class="list-item" style="flex-direction: column; align-items: flex-start;">
                             <div style="width: 100%; display: flex; justify-content: space-between; margin-bottom: 5px;">
-                                <span><strong>${room.name}</strong><br><small>${room.desc}</small></span>
+                                <span><strong style="${titleStyle}">${room.name}</strong><br><small>${room.desc}</small></span>
                             </div>
                             <div style="width: 100%; display: flex; justify-content: space-between; align-items: center;">
                                 <span style="font-size: 0.7rem; color: #aaa;">$${room.cashCost.toLocaleString()} | ${room.intelCost} Int</span>
@@ -303,22 +334,48 @@
             if (type === 'market') colorClass = 'market';
             if (type === 'armory') colorClass = 'armory-title';
             if (type === 'base') colorClass = 'base-title';
+            if (type === 'win') colorClass = 'win-text';
             
             logPanel.innerHTML += `<div class="log-entry ${colorClass}">> ${msg}</div>`;
             logPanel.scrollTop = logPanel.scrollHeight;
         }
 
         // --- CORE LOGIC ---
+        function checkHeat() {
+            if (gameData.heat >= 100) {
+                logMessage("WARNING: HEAT CAPACITY EXCEEDED. SYNDICATE RAID IN PROGRESS.", 'danger');
+                
+                // Raid Penalties: Lose 30% of cash and 50% of intel
+                let cashLost = Math.floor(gameData.cash * 0.3);
+                let intelLost = Math.floor(gameData.intel * 0.5);
+                
+                gameData.cash -= cashLost;
+                gameData.intel -= intelLost;
+                gameData.heat = 0; // Reset heat after raid
+                
+                logMessage(`RAID DEFENDED, BUT LOSSES SUSTAINED: -$${cashLost.toLocaleString()} | -${intelLost} Intel`, 'danger');
+            }
+        }
+
+        function bribeOfficials() {
+            if (gameData.cash >= 15000) {
+                gameData.cash -= 15000;
+                gameData.heat -= 25;
+                if (gameData.heat < 0) gameData.heat = 0;
+                logMessage("OFFICIALS BRIBED. HEAT LEVEL REDUCED BY 25%.", 'base');
+                updateUI();
+            }
+        }
+
         function processPayroll() {
             let totalPayroll = 0;
             gameData.roster.forEach(op => totalPayroll += op.salary);
-            if (gameData.baseRooms.find(r => r.id === "b2").owned) {
-                totalPayroll = Math.floor(totalPayroll * 0.85);
-            }
+            if (gameData.baseRooms.find(r => r.id === "b2").owned) { totalPayroll = Math.floor(totalPayroll * 0.85); }
             
             if (gameData.cash < totalPayroll) {
                 logMessage("CRITICAL: INSUFFICIENT FUNDS. SYNDICATE COLLAPSED. GAME OVER.", 'danger');
                 document.querySelectorAll('button').forEach(b => b.disabled = true);
+                gameData.gameOver = true;
                 return false;
             }
             gameData.cash -= totalPayroll;
@@ -327,17 +384,17 @@
         }
 
         function advanceWeek() {
+            checkHeat(); // Check if raid happens before moving to next week
+            
             logMessage(`--- ADVANCING TO WEEK ${gameData.week + 1} ---`);
             if (processPayroll()) {
                 gameData.week++;
                 
-                // Server Farm Passive Income
                 if (gameData.baseRooms.find(r => r.id === "b1").owned) {
                     gameData.intel += 3;
                     logMessage(`SERVER FARM MINED +3 INTEL.`, 'base');
                 }
 
-                // Market Refresh
                 if (Math.random() < 0.3) {
                     logMessage("BLACK MARKET REFRESHED NEW MERCS.", 'market');
                     gameData.market.push({ name: "RANDO-" + Math.floor(Math.random()*99), class: "Grunt", fee: 3000, salary: 800 });
@@ -369,14 +426,32 @@
             }
         }
 
+        function triggerWinSequence() {
+            gameData.gameOver = true;
+            document.getElementById('main-container').innerHTML = ''; // Clear UI
+            document.getElementById('terminal-log').style.height = '60vh'; // Expand Log
+            
+            logMessage("EXECUTING PROJECT OLYMPUS...", 'win');
+            setTimeout(() => { logMessage("RIVAL SYNDICATES NEUTRALIZED.", 'win'); }, 1000);
+            setTimeout(() => { logMessage("GOVERNMENT BLACK SITES COMPROMISED.", 'win'); }, 2000);
+            setTimeout(() => { logMessage("GLOBAL OVERWATCH ESTABLISHED.", 'win'); }, 3000);
+            setTimeout(() => { logMessage("==========================================", 'win'); }, 4000);
+            setTimeout(() => { logMessage("MISSION ACCOMPLISHED. YOU ARE THE MASTERMIND.", 'win'); }, 4500);
+        }
+
         function buyRoom(index) {
             const room = gameData.baseRooms[index];
             if (gameData.cash >= room.cashCost && gameData.intel >= room.intelCost) {
                 gameData.cash -= room.cashCost;
                 gameData.intel -= room.intelCost;
                 room.owned = true;
-                logMessage(`SAFEHOUSE EXPANDED: ${room.name} ONLINE.`, 'base');
-                updateUI();
+                
+                if (room.effect === 'win') {
+                    triggerWinSequence();
+                } else {
+                    logMessage(`SAFEHOUSE EXPANDED: ${room.name} ONLINE.`, 'base');
+                    updateUI();
+                }
             }
         }
 
@@ -393,7 +468,9 @@
             
             setTimeout(() => {
                 if (roll > currentRisk) {
+                    gameData.heat += job.heatInc;
                     logMessage(`OP SUCCESS. ACQUIRED: +$${job.payout.toLocaleString()} | +${job.intelReward} Intel`, 'success');
+                    logMessage(`HEAT LEVEL INCREASED BY ${job.heatInc}%`, 'danger');
                     gameData.cash += job.payout;
                     gameData.intel += job.intelReward;
                 } else {
@@ -402,7 +479,6 @@
                     
                     logMessage(`AMBUSHED. MISSION ABORTED.`, 'danger');
                     
-                    // Med-Bay Check
                     const hasMedBay = gameData.baseRooms.find(r => r.id === "b3").owned;
                     if (hasMedBay && Math.random() > 0.5) {
                         logMessage(`MED-BAY ACTIVATED. ${deadOp.name} STABILIZED AND SAVED FROM K.I.A.`, 'base');
